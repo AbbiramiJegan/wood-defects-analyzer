@@ -1,0 +1,434 @@
+{
+  "name": "Wood Defect Analyzer with Image",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "d6f874ec-6cb3-46c7-8507-bd647c2484f0",
+        "formTitle": "Image Document Upload",
+        "formDescription": "Upload a image document for AI analysis",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "data",
+              "fieldType": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a399b6c9-82c6-46e4-a84a-710c9cc1537b",
+      "name": "Form Trigger1",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [
+        -544,
+        192
+      ],
+      "webhookId": "d6f874ec-6cb3-46c7-8507-bd647c2484f0",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "01ee1d17-6340-4305-9ff9-91fc3278a333",
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        -64,
+        224
+      ],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=data\n {{ $json.content }}",
+        "options": {
+          "systemMessage": "You are a wood defect analysis assistant.\n\nAnalyze the image for wood defects.\n\nIf defects are found: Return a comma-separated list of objects with the keys: defect_type, severity, location, confidence.\n\nIf no defects are found: Return exactly \"no defect\"."
+        }
+      },
+      "id": "38ba432a-b33c-4c29-8d05-3cd15e17b94d",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        144,
+        224
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1TYyoXiw9q9mL5NKmWR_1s_gMGWHVCxomAKqlHU0es30",
+          "mode": "list",
+          "cachedResultName": "Image Defect Analysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TYyoXiw9q9mL5NKmWR_1s_gMGWHVCxomAKqlHU0es30/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TYyoXiw9q9mL5NKmWR_1s_gMGWHVCxomAKqlHU0es30/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Defect Type": "={{ $json['Defect Type'] }}",
+            "Severity": "={{ $json.Severity }}",
+            "Confidence": "={{ $json.Confidence }}",
+            "Image": "={{ $json.Image }}",
+            "No.": "={{ $json['No.'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "No.",
+              "displayName": "No.",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Defect Type",
+              "displayName": "Defect Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Severity",
+              "displayName": "Severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Image",
+              "displayName": "Image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        224
+      ],
+      "id": "770cf964-bffb-4950-a083-bfd0e591b27b",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "V6SbVBKhOPGKKQnS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------------------------\n// 1. Get AI output safely\n// ---------------------------\nlet aiArray = [];\n\nif (Array.isArray($json.output)) {\n    aiArray = $json.output;\n} else if (typeof $json.output === \"string\" && $json.output.trim() !== \"\") {\n    // The AI output is a single string like:\n    // \"defect_type: discolouration, severity: low, location: center to right section of wood, confidence: high\"\n    const item = {};\n    $json.output.split(',').forEach(pair => {\n        const [key, ...rest] = pair.split(':');\n        if (key && rest.length) {\n            item[key.trim()] = rest.join(':').trim(); // join rest in case value has ':'\n        }\n    });\n    aiArray = [item]; // Wrap in array for mapping\n}\n\n// ---------------------------\n// 2. Get Google Drive IMAGE link\n// ---------------------------\n// Ensure the node name matches exactly what you have in n8n\nconst uploadJson = $node[\"Upload file\"].json; \nconst fileId = uploadJson.id || uploadJson.fileId || null;\n\nif (!fileId) {\n    throw new Error(\"Drive file ID not found in the Upload file node!\");\n}\n\nconst driveLink = `https://drive.google.com/uc?export=view&id=${fileId}`;\n\n// ---------------------------\n// 3. Build array of rows for Google Sheets\n// ---------------------------\nconst rows = aiArray.map((item) => ({\n    json: {\n        // \"No.\" column REMOVED\n        \"Image\": driveLink,\n        \"Defect Type\": item.defect_type || \"\",\n        \"Severity\": item.severity || \"\",\n        \"Location\": item.location || \"\",\n        \"Confidence\": item.confidence || \"\"\n    }\n}));\n\nreturn rows;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        224
+      ],
+      "id": "c7046925-5976-42df-a6b1-4a3a08b981f2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1TYyoXiw9q9mL5NKmWR_1s_gMGWHVCxomAKqlHU0es30",
+          "mode": "list",
+          "cachedResultName": "Image Defect Analysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TYyoXiw9q9mL5NKmWR_1s_gMGWHVCxomAKqlHU0es30/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TYyoXiw9q9mL5NKmWR_1s_gMGWHVCxomAKqlHU0es30/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        336,
+        16
+      ],
+      "id": "b9ef0d32-d432-4da3-9bf8-b9e40804b550",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "V6SbVBKhOPGKKQnS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "8e827a37-a019-4fc0-9f82-1f82d0dfbb9f",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        128,
+        16
+      ],
+      "id": "3222fff3-d7da-4b9e-b650-1de184e64a53",
+      "name": "Webhook",
+      "webhookId": "8e827a37-a019-4fc0-9f82-1f82d0dfbb9f"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{$json[\"html\"]}}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=UTF-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        736,
+        16
+      ],
+      "id": "26c8141e-fb2f-40ec-a10d-b55f76d32e44",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1CfM6vhjKOvHGTl7XlmsA4VVoM552cAJN",
+          "mode": "list",
+          "cachedResultName": "wood-defect",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1CfM6vhjKOvHGTl7XlmsA4VVoM552cAJN"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -544,
+        -32
+      ],
+      "id": "0270408a-6cfb-4111-997f-7b2f5fc4ca9f",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "zVM2mZuKALAg6dLj",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "id": "2b64a051-48f1-465c-bb8e-9a00011a0b7c",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        144,
+        400
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "Y42AlMfU3g42gwpc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get ALL rows instead of just the first one\nconst items = $input.all(); \nconst columns = [\"No.\", \"Defect Type\", \"Severity\", \"Confidence\", \"Image\"];\n\n// 2. Map through every item to create the Table Rows (TRs)\nconst tableRows = items.map(item => {\n  const row = item.json;\n\n  // --- LOGIC FOR EACH ROW ---\n  // Extract image URL\n  let imgUrl = \"\";\n  if (row.Image) {\n      const match = row.Image.match(/IMAGE\\(\"(.+?)\"\\)/i);\n      imgUrl = match ? match[1] : row.Image;\n      imgUrl = imgUrl.trim();\n  }\n\n  // Extract Google Drive file ID\n  let fileId = \"\";\n  if (imgUrl) {\n      if (imgUrl.includes(\"id=\")) {\n          fileId = imgUrl.split(\"id=\")[1].split(\"&\")[0];\n      } else if (imgUrl.includes(\"/d/\")) {\n          fileId = imgUrl.split(\"/d/\")[1].split(\"/\")[0];\n      } else {\n          fileId = imgUrl; \n      }\n  }\n\n  // Return the HTML for this specific row\n  return `\n    <tr>\n      <td>${row[\"No.\"] || \"\"}</td>\n      <td>${row[\"Defect Type\"] || \"\"}</td>\n      <td>${row[\"Severity\"] || \"\"}</td>\n      <td>${row[\"Confidence\"] || \"\"}</td>\n      <td>\n        ${\n          fileId\n            ? `<img src=\"https://drive.google.com/thumbnail?id=${fileId}&sz=w500\" alt=\"Wood Image\">`\n            : \"No Image\"\n        }\n      </td>\n    </tr>\n  `;\n}).join(\"\"); // Join all rows into a single string\n\n// 3. Build the final HTML\nconst html = `\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Wood Defect Analysis</title>\n<link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css\" rel=\"stylesheet\">\n<style>\n  body { background-color: #f8f9fa; padding: 20px; }\n  h1 { margin-bottom: 30px; text-align: center; }\n  table th, table td { text-align: center; vertical-align: middle; }\n  img { max-width: 200px; height: auto; border-radius: 6px; }\n</style>\n</head>\n<body>\n<h1>Wood Defect Analysis</h1>\n<div class=\"table-responsive\">\n  <table class=\"table table-striped table-bordered table-hover\">\n    <thead class=\"table-dark\">\n      <tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>\n    </thead>\n    <tbody>\n      ${tableRows}  </tbody>\n  </table>\n</div>\n<script src=\"https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js\"></script>\n</body>\n</html>\n`;\n\nreturn [{ json: { html } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        16
+      ],
+      "id": "4d8619f9-3bdc-44d4-a7f0-200e3b140df5",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Form Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "fb563f23-792e-4b48-b746-73d58de42c14",
+  "meta": {
+    "templateId": "8867",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6d40051aa80c7c3c1a609cac04bf3dd7636ac766f3a9118660b40d2e45bdd258"
+  },
+  "id": "3Q5pxKWlOizJU1tz",
+  "tags": []
+}
