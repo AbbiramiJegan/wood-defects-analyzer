@@ -84,3 +84,10 @@ Feel free to fork this workflow. Future improvements could include:
 * Expanding the HTML dashboard to include charts/graphs.
 
 **License:** MIT
+
+
+## Author
+
+👩‍💻 **Abbirami Jegan**
+
+🔗 [LinkedIn](https://www.linkedin.com/in/abbirami-jegan)
